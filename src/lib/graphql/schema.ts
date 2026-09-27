@@ -216,8 +216,6 @@ export const resolvers = {
       _: any,
       { releaseId, stepId, completed }: { releaseId: string; stepId: string; completed: Boolean }
     ) => {
-      stopBackendAutoProgress(releaseId);
-
       const existing = await prisma.release.findUnique({ where: { id: releaseId } });
       if (!existing) {
         throw new Error(`Release with ID ${releaseId} not found`);
@@ -237,6 +235,10 @@ export const resolvers = {
         }
       } else {
         completedSteps = completedSteps.filter((id) => id !== stepId);
+      }
+
+      if (completedSteps.length >= activeSteps.length) {
+        stopBackendAutoProgress(releaseId);
       }
 
       const updated = await prisma.release.update({

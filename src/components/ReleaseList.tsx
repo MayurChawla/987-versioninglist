@@ -18,9 +18,8 @@ import {
 } from "lucide-react";
 
 export function ReleaseList() {
-  const { data, loading, error, refetch } = useQuery(GET_RELEASES, {
+  const { data, loading, error, refetch, startPolling, stopPolling } = useQuery(GET_RELEASES, {
     fetchPolicy: "cache-and-network",
-    pollInterval: 2000,
   });
 
   const [filter, setFilter] = useState<"all" | "planned" | "ongoing" | "done">("all");
@@ -30,6 +29,15 @@ export function ReleaseList() {
   const [autoStartId, setAutoStartId] = useState<string | null>(null);
 
   const releases = data?.releases || [];
+  const isAnyAutoRunning = releases.some((r: any) => Boolean(r.isAutoProgressing));
+
+  React.useEffect(() => {
+    if (isAnyAutoRunning) {
+      startPolling(2000);
+    } else {
+      stopPolling();
+    }
+  }, [isAnyAutoRunning, startPolling, stopPolling]);
 
   const filteredReleases = releases.filter((rel: any) => {
     const matchesFilter = filter === "all" || rel.status.toLowerCase() === filter;

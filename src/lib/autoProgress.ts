@@ -19,19 +19,21 @@ export async function startBackendAutoProgress(releaseId: string) {
   // Clear any pre-existing timer for this release
   stopBackendAutoProgress(releaseId);
 
-  // 1. Reset completedSteps to empty array in PostgreSQL (Not Started)
   const existing = await prisma.release.findUnique({ where: { id: releaseId } });
   if (!existing) return;
 
-  await prisma.release.update({
-    where: { id: releaseId },
-    data: { completedSteps: [] },
-  });
-
   const activeSteps = parseStepsConfig(existing.stepsConfig);
-  let currentIndex = 0;
+  const completed = parseCompletedSteps(existing.completedSteps);
 
-  // 2. Schedule recurring 3-second interval in Node.js backend
+  // If all steps are already completed, reset to empty array to start fresh
+  if (completed.length >= activeSteps.length) {
+    await prisma.release.update({
+      where: { id: releaseId },
+      data: { completedSteps: [] },
+    });
+  }
+
+  // Schedule recurring 3-second interval in Node.js backend
   const timer = setInterval(async () => {
     try {
       const currentRel = await prisma.release.findUnique({ where: { id: releaseId } });
@@ -43,7 +45,7 @@ export async function startBackendAutoProgress(releaseId: string) {
       const currentStepsConfig = parseStepsConfig(currentRel.stepsConfig);
       const currentCompleted = parseCompletedSteps(currentRel.completedSteps);
 
-      // Find next uncompleted step
+      // Find next uncompleted step in order
       const nextUncompletedStep = currentStepsConfig.find((s) => !currentCompleted.includes(s.id));
 
       if (nextUncompletedStep) {
