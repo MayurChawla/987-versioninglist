@@ -5,6 +5,7 @@ import { useQuery } from "@apollo/client";
 import { GET_RELEASES } from "@/lib/graphql/queries";
 import { ReleaseCard } from "./ReleaseCard";
 import { ReleaseModal } from "./ReleaseModal";
+import { BenchmarkModal } from "./BenchmarkModal";
 import {
   Plus,
   Search,
@@ -15,6 +16,7 @@ import {
   RefreshCw,
   Loader2,
   SlidersHorizontal,
+  Zap,
 } from "lucide-react";
 
 export function ReleaseList() {
@@ -25,6 +27,7 @@ export function ReleaseList() {
   const [filter, setFilter] = useState<"all" | "planned" | "ongoing" | "done">("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBenchmarkOpen, setIsBenchmarkOpen] = useState(false);
   const [editingRelease, setEditingRelease] = useState<any | null>(null);
   const [autoStartId, setAutoStartId] = useState<string | null>(null);
 
@@ -80,7 +83,16 @@ export function ReleaseList() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={() => setIsBenchmarkOpen(true)}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl border border-amber-500/30 transition shadow-sm"
+            title="View System Breaking Point & Performance Benchmark Analysis"
+          >
+            <Zap className="w-4 h-4 fill-amber-400 text-amber-400 animate-pulse" />
+            <span>Breaking Point & Benchmark Analysis</span>
+          </button>
+
           <button
             onClick={() => refetch()}
             className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition"
@@ -243,6 +255,12 @@ export function ReleaseList() {
         editingRelease={editingRelease}
         onAutoStartProgress={handleAutoStartProgress}
       />
+
+      <BenchmarkModal
+        isOpen={isBenchmarkOpen}
+        onClose={() => setIsBenchmarkOpen(false)}
+      />
     </div>
   );
 }
+
