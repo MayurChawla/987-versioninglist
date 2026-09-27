@@ -9,6 +9,9 @@ export function createApolloClient() {
     link: httpLink,
     cache: new InMemoryCache({
       typePolicies: {
+        ReleaseStepState: {
+          keyFields: false, // Prevents step-1..step-8 cache collisions across different releases
+        },
         Query: {
           fields: {
             releases: {
