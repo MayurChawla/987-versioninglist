@@ -34,6 +34,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    command: sh -c "npx prisma db push && npm run db:seed && npx next start"
 
 volumes:
   postgres_data:
