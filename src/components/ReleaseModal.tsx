@@ -151,6 +151,7 @@ export function ReleaseModal({ isOpen, onClose, editingRelease, onAutoStartProgr
               date: formattedDate,
               additionalInfo: additionalInfo.trim() || null,
               stepsConfig: formattedStepsConfig,
+              autoProgress: autoStart,
             },
           },
         });

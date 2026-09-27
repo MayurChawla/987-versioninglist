@@ -13,6 +13,7 @@ export const GET_RELEASES = gql`
       completedCount
       createdAt
       updatedAt
+      isAutoProgressing
       steps {
         id
         name
@@ -46,6 +47,7 @@ export const CREATE_RELEASE = gql`
       completedCount
       createdAt
       updatedAt
+      isAutoProgressing
       steps {
         id
         name
@@ -69,6 +71,7 @@ export const UPDATE_RELEASE = gql`
       completedCount
       createdAt
       updatedAt
+      isAutoProgressing
       steps {
         id
         name
@@ -92,6 +95,55 @@ export const TOGGLE_STEP = gql`
       completedCount
       createdAt
       updatedAt
+      isAutoProgressing
+      steps {
+        id
+        name
+        description
+        completed
+      }
+    }
+  }
+`;
+
+export const START_AUTO_PROGRESS = gql`
+  mutation StartAutoProgress($releaseId: ID!) {
+    startAutoProgress(releaseId: $releaseId) {
+      id
+      name
+      date
+      additionalInfo
+      completedSteps
+      status
+      totalSteps
+      completedCount
+      createdAt
+      updatedAt
+      isAutoProgressing
+      steps {
+        id
+        name
+        description
+        completed
+      }
+    }
+  }
+`;
+
+export const STOP_AUTO_PROGRESS = gql`
+  mutation StopAutoProgress($releaseId: ID!) {
+    stopAutoProgress(releaseId: $releaseId) {
+      id
+      name
+      date
+      additionalInfo
+      completedSteps
+      status
+      totalSteps
+      completedCount
+      createdAt
+      updatedAt
+      isAutoProgressing
       steps {
         id
         name
@@ -115,6 +167,7 @@ export const RESET_RELEASE_STEPS = gql`
       completedCount
       createdAt
       updatedAt
+      isAutoProgressing
       steps {
         id
         name
@@ -130,3 +183,4 @@ export const DELETE_RELEASE = gql`
     deleteRelease(id: $id)
   }
 `;
+

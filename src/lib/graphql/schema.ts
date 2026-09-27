@@ -1,6 +1,12 @@
 import { createSchema } from "graphql-yoga";
 import { prisma } from "../prisma";
-import { RELEASE_STEPS, computeReleaseStatus, StepDefinition } from "../steps";
+import { RELEASE_STEPS, computeReleaseStatus } from "../steps";
+import { parseCompletedSteps, parseStepsConfig } from "./schemaHelpers";
+import {
+  startBackendAutoProgress,
+  stopBackendAutoProgress,
+  isReleaseAutoProgressing,
+} from "../autoProgress";
 
 export const typeDefs = /* GraphQL */ `
   type StepDefinition {
@@ -28,6 +34,7 @@ export const typeDefs = /* GraphQL */ `
     createdAt: String!
     updatedAt: String!
     steps: [ReleaseStepState!]!
+    isAutoProgressing: Boolean!
   }
 
   input StepInput {
@@ -41,6 +48,7 @@ export const typeDefs = /* GraphQL */ `
     date: String!
     additionalInfo: String
     stepsConfig: [StepInput!]
+    autoProgress: Boolean
   }
 
   input UpdateReleaseInput {
@@ -60,39 +68,12 @@ export const typeDefs = /* GraphQL */ `
     createRelease(input: CreateReleaseInput!): Release!
     updateRelease(id: ID!, input: UpdateReleaseInput!): Release!
     toggleStep(releaseId: ID!, stepId: String!, completed: Boolean!): Release!
+    startAutoProgress(releaseId: ID!): Release!
+    stopAutoProgress(releaseId: ID!): Release!
     resetReleaseSteps(releaseId: ID!): Release!
     deleteRelease(id: ID!): Boolean!
   }
 `;
-
-function parseCompletedSteps(input: any): string[] {
-  if (Array.isArray(input)) {
-    return input.map((s) => String(s));
-  }
-  if (typeof input === "string") {
-    try {
-      const parsed = JSON.parse(input);
-      if (Array.isArray(parsed)) return parsed.map((s) => String(s));
-    } catch {
-      const cleaned = input.replace(/^\{|\}$/g, "").trim();
-      if (cleaned) {
-        return cleaned.split(",").map((s) => s.trim().replace(/^"|"$/g, ""));
-      }
-    }
-  }
-  return [];
-}
-
-function parseStepsConfig(stepsConfigRaw: any): StepDefinition[] {
-  if (Array.isArray(stepsConfigRaw) && stepsConfigRaw.length > 0) {
-    return stepsConfigRaw.map((step: any, index: number) => ({
-      id: step.id || `step-${index + 1}`,
-      name: step.name || `Step ${index + 1}`,
-      description: step.description || "",
-    }));
-  }
-  return RELEASE_STEPS;
-}
 
 function formatRelease(rel: any) {
   const completedSteps = parseCompletedSteps(rel.completedSteps);
@@ -103,6 +84,8 @@ function formatRelease(rel: any) {
     ...step,
     completed: completedSteps.includes(step.id),
   }));
+
+  const isAuto = isReleaseAutoProgressing(rel.id);
 
   return {
     id: rel.id,
@@ -116,6 +99,7 @@ function formatRelease(rel: any) {
     createdAt: new Date(rel.createdAt).toISOString(),
     updatedAt: new Date(rel.updatedAt).toISOString(),
     steps: stepsState,
+    isAutoProgressing: isAuto,
   };
 }
 
@@ -139,7 +123,17 @@ export const resolvers = {
   Mutation: {
     createRelease: async (
       _: any,
-      { input }: { input: { name: string; date: string; additionalInfo?: string; stepsConfig?: any[] } }
+      {
+        input,
+      }: {
+        input: {
+          name: string;
+          date: string;
+          additionalInfo?: string;
+          stepsConfig?: any[];
+          autoProgress?: boolean;
+        };
+      }
     ) => {
       if (!input.name || input.name.trim() === "") {
         throw new Error("Release name is mandatory");
@@ -167,10 +161,15 @@ export const resolvers = {
           name: input.name.trim(),
           date: releaseDate,
           additionalInfo: input.additionalInfo?.trim() || null,
-          completedSteps: [], // Start with all steps unchecked (0 completed)
+          completedSteps: [],
           stepsConfig: parsedConfig,
         },
       });
+
+      if (input.autoProgress) {
+        // Trigger server-side backend auto-progression loop (3s interval)
+        startBackendAutoProgress(dbRelease.id);
+      }
 
       return formatRelease(dbRelease);
     },
@@ -217,6 +216,8 @@ export const resolvers = {
       _: any,
       { releaseId, stepId, completed }: { releaseId: string; stepId: string; completed: Boolean }
     ) => {
+      stopBackendAutoProgress(releaseId);
+
       const existing = await prisma.release.findUnique({ where: { id: releaseId } });
       if (!existing) {
         throw new Error(`Release with ID ${releaseId} not found`);
@@ -246,7 +247,32 @@ export const resolvers = {
       return formatRelease(updated);
     },
 
+    startAutoProgress: async (_: any, { releaseId }: { releaseId: string }) => {
+      const existing = await prisma.release.findUnique({ where: { id: releaseId } });
+      if (!existing) {
+        throw new Error(`Release with ID ${releaseId} not found`);
+      }
+
+      await startBackendAutoProgress(releaseId);
+
+      const updated = await prisma.release.findUnique({ where: { id: releaseId } });
+      return formatRelease(updated || existing);
+    },
+
+    stopAutoProgress: async (_: any, { releaseId }: { releaseId: string }) => {
+      stopBackendAutoProgress(releaseId);
+
+      const existing = await prisma.release.findUnique({ where: { id: releaseId } });
+      if (!existing) {
+        throw new Error(`Release with ID ${releaseId} not found`);
+      }
+
+      return formatRelease(existing);
+    },
+
     resetReleaseSteps: async (_: any, { releaseId }: { releaseId: string }) => {
+      stopBackendAutoProgress(releaseId);
+
       const existing = await prisma.release.findUnique({ where: { id: releaseId } });
       if (!existing) {
         throw new Error(`Release with ID ${releaseId} not found`);
@@ -261,6 +287,8 @@ export const resolvers = {
     },
 
     deleteRelease: async (_: any, { id }: { id: string }) => {
+      stopBackendAutoProgress(id);
+
       const existing = await prisma.release.findUnique({ where: { id } });
       if (!existing) {
         return false;

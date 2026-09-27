@@ -20,6 +20,7 @@ import {
 export function ReleaseList() {
   const { data, loading, error, refetch } = useQuery(GET_RELEASES, {
     fetchPolicy: "cache-and-network",
+    pollInterval: 2000,
   });
 
   const [filter, setFilter] = useState<"all" | "planned" | "ongoing" | "done">("all");

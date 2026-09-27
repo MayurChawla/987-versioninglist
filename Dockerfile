@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Dependencies stage
 FROM base AS deps
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat openssl openssl1.1-compat || apk add --no-cache libc6-compat openssl
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
 RUN npm ci
@@ -33,7 +33,7 @@ WORKDIR /app
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
 
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl openssl1.1-compat || apk add --no-cache openssl
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 

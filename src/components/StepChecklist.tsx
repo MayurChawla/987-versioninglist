@@ -1,9 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useMutation } from "@apollo/client";
-import { TOGGLE_STEP, RESET_RELEASE_STEPS, GET_RELEASES } from "@/lib/graphql/queries";
-import { Check, Loader2, Play, RefreshCw } from "lucide-react";
+import {
+  TOGGLE_STEP,
+  RESET_RELEASE_STEPS,
+  START_AUTO_PROGRESS,
+  STOP_AUTO_PROGRESS,
+  GET_RELEASES,
+} from "@/lib/graphql/queries";
+import { Check, Loader2, Play, Pause, RefreshCw, Zap } from "lucide-react";
 
 interface Step {
   id: string;
@@ -15,13 +21,17 @@ interface Step {
 interface StepChecklistProps {
   releaseId: string;
   steps: Step[];
+  isAutoProgressing?: boolean;
   autoStart?: boolean;
 }
 
-export function StepChecklist({ releaseId, steps, autoStart }: StepChecklistProps) {
+export function StepChecklist({
+  releaseId,
+  steps,
+  isAutoProgressing = false,
+  autoStart,
+}: StepChecklistProps) {
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [isAutoRunning, setIsAutoRunning] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [toggleStep] = useMutation(TOGGLE_STEP, {
     refetchQueries: [{ query: GET_RELEASES }],
@@ -31,19 +41,13 @@ export function StepChecklist({ releaseId, steps, autoStart }: StepChecklistProp
     refetchQueries: [{ query: GET_RELEASES }],
   });
 
-  const stopAutoRun = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    setIsAutoRunning(false);
-  };
+  const [startAutoProgress, { loading: startingAuto }] = useMutation(START_AUTO_PROGRESS, {
+    refetchQueries: [{ query: GET_RELEASES }],
+  });
 
-  useEffect(() => {
-    return () => {
-      stopAutoRun();
-    };
-  }, []);
+  const [stopAutoProgress, { loading: stoppingAuto }] = useMutation(STOP_AUTO_PROGRESS, {
+    refetchQueries: [{ query: GET_RELEASES }],
+  });
 
   const handleToggle = async (stepId: string, currentCompleted: boolean) => {
     setTogglingId(stepId);
@@ -63,7 +67,6 @@ export function StepChecklist({ releaseId, steps, autoStart }: StepChecklistProp
   };
 
   const handleReset = async () => {
-    stopAutoRun();
     try {
       await resetReleaseSteps({
         variables: { releaseId },
@@ -74,56 +77,48 @@ export function StepChecklist({ releaseId, steps, autoStart }: StepChecklistProp
   };
 
   const handleStartAutoRun = async () => {
-    stopAutoRun();
-    setIsAutoRunning(true);
-
-    // Step 1: First reset whole list to unchecked (not started / 0 completed)
     try {
-      await resetReleaseSteps({
-        variables: { releaseId },
-      });
-    } catch (err) {
-      console.error("Failed to reset steps before auto run:", err);
-    }
-
-    let currentIndex = 0;
-
-    // Step 2: Every 3 seconds, complete the next uncompleted step in order
-    timerRef.current = setInterval(async () => {
-      if (currentIndex < steps.length) {
-        const targetStep = steps[currentIndex];
-        if (targetStep) {
-          try {
-            await toggleStep({
-              variables: {
-                releaseId,
-                stepId: targetStep.id,
-                completed: true,
-              },
-            });
-          } catch (e) {
-            console.error("Auto step toggle failed:", e);
-          }
-        }
-        currentIndex++;
-      } else {
-        stopAutoRun();
+      // If all steps are already completed, reset first
+      const allCompleted = steps.length > 0 && steps.every((s) => s.completed);
+      if (allCompleted) {
+        await resetReleaseSteps({ variables: { releaseId } });
       }
-    }, 3000);
+      await startAutoProgress({ variables: { releaseId } });
+    } catch (err) {
+      console.error("Failed to start backend auto progress:", err);
+    }
+  };
+
+  const handleStopAutoRun = async () => {
+    try {
+      await stopAutoProgress({ variables: { releaseId } });
+    } catch (err) {
+      console.error("Failed to stop backend auto progress:", err);
+    }
   };
 
   useEffect(() => {
-    if (autoStart) {
+    if (autoStart && !isAutoProgressing) {
       handleStartAutoRun();
     }
   }, [autoStart]);
 
+  const isBusy = startingAuto || stoppingAuto;
+
   return (
     <div className="space-y-3 mt-4">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-          Release Steps Checklist
-        </h4>
+        <div className="flex items-center gap-2">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            Release Steps Checklist
+          </h4>
+          {isAutoProgressing && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-full animate-pulse">
+              <Zap className="w-3 h-3 fill-amber-400" />
+              Backend Auto-Progressing (3s)
+            </span>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           <button
@@ -136,28 +131,35 @@ export function StepChecklist({ releaseId, steps, autoStart }: StepChecklistProp
             <span>Reset Unchecked</span>
           </button>
 
-          <button
-            type="button"
-            onClick={handleStartAutoRun}
-            disabled={isAutoRunning}
-            className={`inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold text-white rounded-lg transition shadow-sm ${
-              isAutoRunning
-                ? "bg-amber-600 animate-pulse cursor-wait"
-                : "bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 shadow-amber-500/20"
-            }`}
-          >
-            {isAutoRunning ? (
-              <>
+          {isAutoProgressing ? (
+            <button
+              type="button"
+              onClick={handleStopAutoRun}
+              disabled={isBusy}
+              className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-lg transition shadow-sm shadow-rose-600/20 disabled:opacity-50"
+            >
+              {stoppingAuto ? (
                 <Loader2 className="w-3 h-3 animate-spin" />
-                <span>Auto-Running (3s Cadence)...</span>
-              </>
-            ) : (
-              <>
+              ) : (
+                <Pause className="w-3 h-3 fill-current" />
+              )}
+              <span>Pause Auto-Run</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleStartAutoRun}
+              disabled={isBusy}
+              className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold text-white bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 rounded-lg transition shadow-sm shadow-amber-500/20 disabled:opacity-50"
+            >
+              {startingAuto ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
                 <Play className="w-3 h-3 fill-current" />
-                <span>Auto-Run Steps (3s)</span>
-              </>
-            )}
-          </button>
+              )}
+              <span>Auto-Run Steps (3s)</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -222,3 +224,4 @@ export function StepChecklist({ releaseId, steps, autoStart }: StepChecklistProp
     </div>
   );
 }
+

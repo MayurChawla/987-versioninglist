@@ -27,6 +27,7 @@ interface ReleaseCardProps {
     status: string;
     totalSteps: number;
     completedCount: number;
+    isAutoProgressing?: boolean;
     steps: {
       id: string;
       name: string;
@@ -65,7 +66,9 @@ export function ReleaseCard({ release, onEdit, autoStartId }: ReleaseCardProps) 
   });
 
   return (
-    <div className="group rounded-2xl bg-slate-900/80 border border-slate-800/80 shadow-lg hover:border-slate-700/80 transition-all duration-300 overflow-hidden backdrop-blur-md">
+    <div className={`group rounded-2xl bg-slate-900/80 border transition-all duration-300 overflow-hidden backdrop-blur-md ${
+      release.isAutoProgressing ? "border-amber-500/50 shadow-amber-500/10 shadow-xl" : "border-slate-800/80 shadow-lg hover:border-slate-700/80"
+    }`}>
       <div className="p-5 md:p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
           <div>
@@ -74,6 +77,11 @@ export function ReleaseCard({ release, onEdit, autoStartId }: ReleaseCardProps) 
                 {release.name}
               </h3>
               <StatusBadge status={release.status} />
+              {release.isAutoProgressing && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-bold text-amber-300 bg-amber-500/20 border border-amber-500/40 rounded-full animate-pulse">
+                  ⚡ Auto-Running (3s)
+                </span>
+              )}
             </div>
             <div className="flex items-center text-xs text-slate-400 gap-1.5 mt-1">
               <Calendar className="w-3.5 h-3.5 text-slate-500" />
@@ -130,6 +138,7 @@ export function ReleaseCard({ release, onEdit, autoStartId }: ReleaseCardProps) 
             <StepChecklist
               releaseId={release.id}
               steps={release.steps}
+              isAutoProgressing={release.isAutoProgressing}
               autoStart={autoStartId === release.id}
             />
           </div>
