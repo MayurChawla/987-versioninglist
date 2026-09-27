@@ -164,36 +164,13 @@ mutation DeleteRelease($id: ID!) {
 
 ## 🐳 Local Development & Docker Setup
 
-### Prerequisites
-- [Docker](https://www.docker.com/) & Docker Compose installed, OR Node.js v20+ with PostgreSQL.
-
 ### Quickstart with Docker Compose (Recommended)
 ```bash
-# 1. Clone repository
-git clone <repository-url>
-cd 987-versioninglist
+# 1. Start PostgreSQL & Next.js web application
+docker compose up --build
 
-# 2. Start PostgreSQL & Next.js web application
-docker compose up --build -d
-
-# 3. Open browser
+# 2. Open browser
 # UI & GraphQL API available at http://localhost:3000
-```
-
-### Manual Local Setup (Without Docker)
-```bash
-# 1. Install dependencies
-npm install
-
-# 2. Configure Environment (.env)
-cp .env.example .env
-
-# 3. Push schema & seed database
-npx prisma db push
-npm run db:seed
-
-# 4. Start development server
-npm run dev
 ```
 
 ---
@@ -209,21 +186,21 @@ npm test
 
 ---
 
-## ⚡ Stress Testing & Performance
+## ⚡ Stress Testing & Performance Benchmark Results
 
 An automated load/stress script using `autocannon` is included in [`scripts/stress-test.mjs`](file:///e:/Mayur/WORK/interview%20Prep/test987-versioning/987-versioninglist/scripts/stress-test.mjs).
 
 ```bash
-# Execute stress testing against GraphQL API
-npm run stress-test
+node scripts/stress-test.mjs
 ```
 
-### Sample Stress Test Benchmarks (50 Concurrent Connections, 10s Duration)
-- **Target URL**: `http://localhost:3000/api/graphql`
-- **Total Requests Handled**: ~8,400 requests in 10s
-- **Average Throughput**: **840+ requests/sec** (Simultaneous users)
-- **Average Latency**: **5.2 ms**
-- **Success Rate**: **100% (2xx Success)**
+### Empirical Benchmark Results (Tested on Docker Container Stack with PostgreSQL 15)
+- **Target Endpoint**: `http://localhost:3000/api/graphql`
+- **Simultaneous Users / Connections**: **50 concurrent connections**
+- **Total Requests Handled**: **3,394 requests** in 10 seconds
+- **Sustained Throughput**: **339.4 requests/second**
+- **Average Latency**: **146.32 ms**
+- **Success Rate**: **100% (3,394 / 3,394 2xx Success responses, 0 errors, 0 failures)**
 
 ---
 
@@ -235,7 +212,7 @@ npm run stress-test
 
 ### Deployment Steps (Vercel + Neon Postgres)
 1. Provision a free PostgreSQL database on Neon.tech and copy `DATABASE_URL`.
-2. Push repository to GitHub.
+2. Push repository to GitHub (`git push -u origin main`).
 3. Import repository into Vercel.
 4. Set Environment Variables:
    - `DATABASE_URL`: Your Neon PostgreSQL Connection String.
