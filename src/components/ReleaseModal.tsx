@@ -172,29 +172,31 @@ export function ReleaseModal({ isOpen, onClose, editingRelease, onAutoStartProgr
   const isLoading = creating || updating;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto max-h-screen">
-      <div className="w-full max-w-2xl rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-6 relative text-slate-100 my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-6 animate-in fade-in duration-200 overflow-hidden">
+      <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-5 sm:p-6 relative text-slate-100 overflow-hidden">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-800 transition"
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-800 transition z-10"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <h3 className="text-xl font-bold bg-gradient-to-r from-blue-400 via-indigo-300 to-teal-300 bg-clip-text text-transparent mb-1">
-          {isEditMode ? "Update Release & Configurable Steps" : "Create New Configurable Release"}
-        </h3>
-        <p className="text-xs text-slate-400 mb-5">
-          Define release details, customize step checklist items, and trigger automated 3-second completion progression.
-        </p>
+        <div className="shrink-0 pr-8">
+          <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-400 via-indigo-300 to-teal-300 bg-clip-text text-transparent mb-1">
+            {isEditMode ? "Update Release & Configurable Steps" : "Create New Configurable Release"}
+          </h3>
+          <p className="text-xs text-slate-400 mb-4">
+            Define release details, customize step checklist items, and trigger automated 3-second completion progression.
+          </p>
+        </div>
 
         {errorMsg && (
-          <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium">
+          <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium shrink-0">
             {errorMsg}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 space-y-4 overflow-y-auto pr-1">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
