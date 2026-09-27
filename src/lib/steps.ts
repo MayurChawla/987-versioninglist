@@ -57,16 +57,18 @@ export type ReleaseStatus = "planned" | "ongoing" | "done";
  * - At least 1 completed step, but not all: "ongoing"
  * - All steps completed: "done"
  */
-export function computeReleaseStatus(completedStepIds: string[] = []): ReleaseStatus {
-  const validCompleted = completedStepIds.filter((id) =>
-    RELEASE_STEPS.some((step) => step.id === id)
-  );
+export function computeReleaseStatus(
+  completedStepIds: string[] = [],
+  availableSteps: StepDefinition[] = RELEASE_STEPS
+): ReleaseStatus {
+  const stepIds = availableSteps.map((s) => s.id);
+  const validCompleted = completedStepIds.filter((id) => stepIds.includes(id));
 
   if (validCompleted.length === 0) {
     return "planned";
   }
 
-  if (validCompleted.length === TOTAL_STEPS_COUNT) {
+  if (validCompleted.length === availableSteps.length && availableSteps.length > 0) {
     return "done";
   }
 

@@ -102,6 +102,29 @@ export const TOGGLE_STEP = gql`
   }
 `;
 
+export const RESET_RELEASE_STEPS = gql`
+  mutation ResetReleaseSteps($releaseId: ID!) {
+    resetReleaseSteps(releaseId: $releaseId) {
+      id
+      name
+      date
+      additionalInfo
+      completedSteps
+      status
+      totalSteps
+      completedCount
+      createdAt
+      updatedAt
+      steps {
+        id
+        name
+        description
+        completed
+      }
+    }
+  }
+`;
+
 export const DELETE_RELEASE = gql`
   mutation DeleteRelease($id: ID!) {
     deleteRelease(id: $id)

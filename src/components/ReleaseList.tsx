@@ -26,6 +26,7 @@ export function ReleaseList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRelease, setEditingRelease] = useState<any | null>(null);
+  const [autoStartId, setAutoStartId] = useState<string | null>(null);
 
   const releases = data?.releases || [];
 
@@ -51,6 +52,10 @@ export function ReleaseList() {
     setIsModalOpen(true);
   };
 
+  const handleAutoStartProgress = (id: string) => {
+    setAutoStartId(id);
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -62,7 +67,7 @@ export function ReleaseList() {
             Release Checklist Tool
           </h1>
           <p className="text-xs text-slate-400 mt-1 max-w-xl leading-relaxed">
-            Manage software release cycles, track step completions in real-time, and automate release status workflow.
+            Manage software release cycles, configure step checklists, and automate 3-second step completion workflows.
           </p>
         </div>
 
@@ -213,7 +218,12 @@ export function ReleaseList() {
       ) : (
         <div className="space-y-4">
           {filteredReleases.map((release: any) => (
-            <ReleaseCard key={release.id} release={release} onEdit={handleOpenEditModal} />
+            <ReleaseCard
+              key={release.id}
+              release={release}
+              onEdit={handleOpenEditModal}
+              autoStartId={autoStartId}
+            />
           ))}
         </div>
       )}
@@ -222,6 +232,7 @@ export function ReleaseList() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         editingRelease={editingRelease}
+        onAutoStartProgress={handleAutoStartProgress}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import { createSchema } from "graphql-yoga";
 import { prisma } from "../prisma";
-import { RELEASE_STEPS, computeReleaseStatus, TOTAL_STEPS_COUNT } from "../steps";
+import { RELEASE_STEPS, computeReleaseStatus, StepDefinition } from "../steps";
 
 export const typeDefs = /* GraphQL */ `
   type StepDefinition {
@@ -30,16 +30,24 @@ export const typeDefs = /* GraphQL */ `
     steps: [ReleaseStepState!]!
   }
 
+  input StepInput {
+    id: String
+    name: String!
+    description: String
+  }
+
   input CreateReleaseInput {
     name: String!
     date: String!
     additionalInfo: String
+    stepsConfig: [StepInput!]
   }
 
   input UpdateReleaseInput {
     name: String
     date: String
     additionalInfo: String
+    stepsConfig: [StepInput!]
   }
 
   type Query {
@@ -52,14 +60,46 @@ export const typeDefs = /* GraphQL */ `
     createRelease(input: CreateReleaseInput!): Release!
     updateRelease(id: ID!, input: UpdateReleaseInput!): Release!
     toggleStep(releaseId: ID!, stepId: String!, completed: Boolean!): Release!
+    resetReleaseSteps(releaseId: ID!): Release!
     deleteRelease(id: ID!): Boolean!
   }
 `;
 
+function parseCompletedSteps(input: any): string[] {
+  if (Array.isArray(input)) {
+    return input.map((s) => String(s));
+  }
+  if (typeof input === "string") {
+    try {
+      const parsed = JSON.parse(input);
+      if (Array.isArray(parsed)) return parsed.map((s) => String(s));
+    } catch {
+      const cleaned = input.replace(/^\{|\}$/g, "").trim();
+      if (cleaned) {
+        return cleaned.split(",").map((s) => s.trim().replace(/^"|"$/g, ""));
+      }
+    }
+  }
+  return [];
+}
+
+function parseStepsConfig(stepsConfigRaw: any): StepDefinition[] {
+  if (Array.isArray(stepsConfigRaw) && stepsConfigRaw.length > 0) {
+    return stepsConfigRaw.map((step: any, index: number) => ({
+      id: step.id || `step-${index + 1}`,
+      name: step.name || `Step ${index + 1}`,
+      description: step.description || "",
+    }));
+  }
+  return RELEASE_STEPS;
+}
+
 function formatRelease(rel: any) {
-  const completedSteps: string[] = rel.completedSteps || [];
-  const status = computeReleaseStatus(completedSteps);
-  const stepsState = RELEASE_STEPS.map((step) => ({
+  const completedSteps = parseCompletedSteps(rel.completedSteps);
+  const activeSteps = parseStepsConfig(rel.stepsConfig);
+
+  const status = computeReleaseStatus(completedSteps, activeSteps);
+  const stepsState = activeSteps.map((step) => ({
     ...step,
     completed: completedSteps.includes(step.id),
   }));
@@ -71,7 +111,7 @@ function formatRelease(rel: any) {
     additionalInfo: rel.additionalInfo ?? null,
     completedSteps,
     status,
-    totalSteps: TOTAL_STEPS_COUNT,
+    totalSteps: activeSteps.length,
     completedCount: completedSteps.length,
     createdAt: new Date(rel.createdAt).toISOString(),
     updatedAt: new Date(rel.updatedAt).toISOString(),
@@ -97,7 +137,10 @@ export const resolvers = {
     releaseSteps: () => RELEASE_STEPS,
   },
   Mutation: {
-    createRelease: async (_: any, { input }: { input: { name: string; date: string; additionalInfo?: string } }) => {
+    createRelease: async (
+      _: any,
+      { input }: { input: { name: string; date: string; additionalInfo?: string; stepsConfig?: any[] } }
+    ) => {
       if (!input.name || input.name.trim() === "") {
         throw new Error("Release name is mandatory");
       }
@@ -110,12 +153,22 @@ export const resolvers = {
         throw new Error("Invalid date format provided");
       }
 
+      let parsedConfig: any = null;
+      if (Array.isArray(input.stepsConfig) && input.stepsConfig.length > 0) {
+        parsedConfig = input.stepsConfig.map((s, idx) => ({
+          id: s.id || `step-${idx + 1}`,
+          name: s.name.trim(),
+          description: s.description ? s.description.trim() : "",
+        }));
+      }
+
       const dbRelease = await prisma.release.create({
         data: {
           name: input.name.trim(),
           date: releaseDate,
           additionalInfo: input.additionalInfo?.trim() || null,
-          completedSteps: [],
+          completedSteps: [], // Start with all steps unchecked (0 completed)
+          stepsConfig: parsedConfig,
         },
       });
 
@@ -124,7 +177,7 @@ export const resolvers = {
 
     updateRelease: async (
       _: any,
-      { id, input }: { id: string; input: { name?: string; date?: string; additionalInfo?: string } }
+      { id, input }: { id: string; input: { name?: string; date?: string; additionalInfo?: string; stepsConfig?: any[] } }
     ) => {
       const existing = await prisma.release.findUnique({ where: { id } });
       if (!existing) {
@@ -144,6 +197,13 @@ export const resolvers = {
       if (input.additionalInfo !== undefined) {
         updateData.additionalInfo = input.additionalInfo.trim() || null;
       }
+      if (Array.isArray(input.stepsConfig)) {
+        updateData.stepsConfig = input.stepsConfig.map((s, idx) => ({
+          id: s.id || `step-${idx + 1}`,
+          name: s.name.trim(),
+          description: s.description ? s.description.trim() : "",
+        }));
+      }
 
       const updated = await prisma.release.update({
         where: { id },
@@ -162,12 +222,13 @@ export const resolvers = {
         throw new Error(`Release with ID ${releaseId} not found`);
       }
 
-      const stepExists = RELEASE_STEPS.some((s) => s.id === stepId);
+      const activeSteps = parseStepsConfig(existing.stepsConfig);
+      const stepExists = activeSteps.some((s) => s.id === stepId);
       if (!stepExists) {
         throw new Error(`Invalid step ID: ${stepId}`);
       }
 
-      let completedSteps = [...existing.completedSteps];
+      let completedSteps = parseCompletedSteps(existing.completedSteps);
 
       if (completed) {
         if (!completedSteps.includes(stepId)) {
@@ -180,6 +241,20 @@ export const resolvers = {
       const updated = await prisma.release.update({
         where: { id: releaseId },
         data: { completedSteps },
+      });
+
+      return formatRelease(updated);
+    },
+
+    resetReleaseSteps: async (_: any, { releaseId }: { releaseId: string }) => {
+      const existing = await prisma.release.findUnique({ where: { id: releaseId } });
+      if (!existing) {
+        throw new Error(`Release with ID ${releaseId} not found`);
+      }
+
+      const updated = await prisma.release.update({
+        where: { id: releaseId },
+        data: { completedSteps: [] },
       });
 
       return formatRelease(updated);

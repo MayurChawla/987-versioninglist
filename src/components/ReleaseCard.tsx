@@ -35,10 +35,11 @@ interface ReleaseCardProps {
     }[];
   };
   onEdit: (release: any) => void;
+  autoStartId?: string | null;
 }
 
-export function ReleaseCard({ release, onEdit }: ReleaseCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export function ReleaseCard({ release, onEdit, autoStartId }: ReleaseCardProps) {
+  const [isExpanded, setIsExpanded] = useState(autoStartId === release.id);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   const [deleteRelease, { loading: isDeleting }] = useMutation(DELETE_RELEASE, {
@@ -84,7 +85,7 @@ export function ReleaseCard({ release, onEdit }: ReleaseCardProps) {
             <button
               onClick={() => onEdit(release)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-800 rounded-lg border border-slate-700/50 transition"
-              title="Edit release details"
+              title="Edit release details & steps"
             >
               <Edit3 className="w-3.5 h-3.5" />
               <span>Edit</span>
@@ -126,7 +127,11 @@ export function ReleaseCard({ release, onEdit }: ReleaseCardProps) {
 
         {isExpanded && (
           <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-            <StepChecklist releaseId={release.id} steps={release.steps} />
+            <StepChecklist
+              releaseId={release.id}
+              steps={release.steps}
+              autoStart={autoStartId === release.id}
+            />
           </div>
         )}
       </div>
