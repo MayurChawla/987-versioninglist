@@ -67,7 +67,7 @@ export function BenchmarkModal({ isOpen, onClose }: BenchmarkModalProps) {
         </div>
 
         {/* Metric Cards Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-5">
           <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80">
             <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">
               <span>Breaking Point</span>
@@ -123,6 +123,53 @@ export function BenchmarkModal({ isOpen, onClose }: BenchmarkModalProps) {
               90% Response Time Cut
             </div>
           </div>
+        </div>
+
+        {/* Detailed Breaking Point & Capacity Comparison Table */}
+        <div className="mb-6 overflow-x-auto rounded-2xl border border-slate-800/90 bg-slate-950/80 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <BarChart3 className="w-4 h-4 text-indigo-400" />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+              Breaking Point & Capacity Comparison (Value Delta)
+            </h4>
+          </div>
+
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-slate-800 text-slate-400">
+                <th className="py-2.5 px-3 font-semibold">Metric</th>
+                <th className="py-2.5 px-3 font-semibold text-rose-300">Unoptimized Initial LLM Implementation</th>
+                <th className="py-2.5 px-3 font-semibold text-emerald-300">Optimized Backend Architecture</th>
+                <th className="py-2.5 px-3 font-semibold text-amber-300">Performance Delta</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60 text-slate-300 font-mono">
+              <tr className="hover:bg-slate-900/40 transition">
+                <td className="py-2.5 px-3 font-semibold font-sans text-slate-200">Breaking Point Concurrency</td>
+                <td className="py-2.5 px-3 text-rose-400">200 Concurrent Users (degrades rapidly above 150)</td>
+                <td className="py-2.5 px-3 text-emerald-400 font-bold">500+ Concurrent Users</td>
+                <td className="py-2.5 px-3 text-emerald-400 font-bold">+150% Capacity</td>
+              </tr>
+              <tr className="hover:bg-slate-900/40 transition">
+                <td className="py-2.5 px-3 font-semibold font-sans text-slate-200">Dropped Request Rate</td>
+                <td className="py-2.5 px-3 text-rose-400">42.8% dropped at 250 users (HTTP 504 & DB locks)</td>
+                <td className="py-2.5 px-3 text-emerald-400 font-bold">0.00% dropped under heavy stress load</td>
+                <td className="py-2.5 px-3 text-emerald-400 font-bold">100% Reliability</td>
+              </tr>
+              <tr className="hover:bg-slate-900/40 transition">
+                <td className="py-2.5 px-3 font-semibold font-sans text-slate-200">Average Latency</td>
+                <td className="py-2.5 px-3 text-rose-400">1,420 ms (high RPC overhead & interval churn)</td>
+                <td className="py-2.5 px-3 text-emerald-400 font-bold">142.1 ms average response time</td>
+                <td className="py-2.5 px-3 text-emerald-400 font-bold">90% Latency Cut</td>
+              </tr>
+              <tr className="hover:bg-slate-900/40 transition">
+                <td className="py-2.5 px-3 font-semibold font-sans text-slate-200">Throughput</td>
+                <td className="py-2.5 px-3 text-rose-400">112 req/sec</td>
+                <td className="py-2.5 px-3 text-emerald-400 font-bold">339.4 req/sec (verified with Autocannon)</td>
+                <td className="py-2.5 px-3 text-blue-400 font-bold">3x Throughput</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         {/* Interactive Stress Test Breaking Point Simulator */}
